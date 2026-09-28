@@ -1,0 +1,9 @@
+.DS_Store
+.next
+node_modules
+dist
+tsconfig.tsbuildinfo
+.env
+coverage
+playwright-report
+test-results

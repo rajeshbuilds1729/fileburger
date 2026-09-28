@@ -1,0 +1,142 @@
+<!--
+  https://github.com/jimmywarting/StreamSaver.js/blob/master/mitm.html
+
+  This page is the "man in the middle" that hands the opener's MessageChannel
+  to the service worker so downloads can be streamed straight to disk. It is
+  only the signalling shim: once the channel is transferred it can be closed,
+  but we keep it alive so the service worker is not torn down mid-download.
+-->
+<script>
+// Pings the service worker so it is not garbage collected between chunks.
+let keepAlive = () => {
+  keepAlive = () => {}
+  var ping = location.href.substr(0, location.href.lastIndexOf('/')) + '/ping'
+  var interval = setInterval(() => {
+    if (sw) {
+      sw.postMessage('ping')
+    } else {
+      fetch(ping).then((res) => res.text(!res.ok && clearInterval(interval)))
+    }
+  }, 10000)
+}
+
+// Buffer messages that arrive before the service worker is ready.
+let messages = []
+window.onmessage = (evt) => messages.push(evt)
+
+let sw = null
+let scope = ''
+
+function registerWorker() {
+  return navigator.serviceWorker
+    .getRegistration('./')
+    .then(
+      (swReg) =>
+        swReg || navigator.serviceWorker.register('sw.js', { scope: './' }),
+    )
+    .then((swReg) => {
+      const swRegTmp = swReg.installing || swReg.waiting
+
+      scope = swReg.scope
+
+      return (
+        (sw = swReg.active) ||
+        new Promise((resolve) => {
+          swRegTmp.addEventListener('statechange', (fn = () => {
+            if (swRegTmp.state === 'activated') {
+              swRegTmp.removeEventListener('statechange', fn)
+              sw = swReg.active
+              resolve()
+            }
+          }))
+        })
+      )
+    })
+}
+
+function onMessage(event) {
+  let { data, ports, origin } = event
+
+  // A MessageChannel is required so concurrent downloads do not interfere.
+  if (!ports || !ports.length) {
+    throw new TypeError('[StreamSaver] You did not send a messageChannel')
+  }
+
+  if (typeof data !== 'object') {
+    throw new TypeError('[StreamSaver] You did not send an object')
+  }
+
+  data.origin = origin
+  data.referrer = data.referrer || document.referrer || origin
+  data.streamSaverVersion = new URLSearchParams(location.search).get('version')
+
+  if (!data.headers) {
+    console.warn(
+      '[StreamSaver] pass `data.headers` that you would like to pass along to the service worker',
+    )
+  } else {
+    // Throws a TypeError if the shape is wrong.
+    new Headers(data.headers)
+  }
+
+  if (typeof data.filename === 'string') {
+    console.warn(
+      '[StreamSaver] `data.filename` is deprecated; use the Content-Disposition header instead',
+    )
+    data.filename = data.filename.replace(/\//g, ':')
+  }
+
+  if (data.size) {
+    console.warn(
+      '[StreamSaver] `data.size` is deprecated; use the Content-Length header instead',
+    )
+  }
+
+  if (data.readableStream) {
+    console.warn(
+      '[StreamSaver] send the readableStream over the messageChannel, not through the mitm',
+    )
+  }
+
+  if (!data.pathname) {
+    console.warn(
+      '[StreamSaver] send `data.pathname` (eg: /pictures/summer.jpg)',
+    )
+    data.pathname = Math.random().toString().slice(-6) + '/' + data.filename
+  }
+
+  data.pathname = data.pathname.replace(/^\/+/g, '')
+
+  let org = origin.replace(/(^\w+:|^)\/\//, '')
+  data.url = new URL(`${scope + org}/${data.pathname}`).toString()
+
+  if (!data.url.startsWith(`${scope + org}/`)) {
+    throw new TypeError('[StreamSaver] bad `data.pathname`')
+  }
+
+  const transferable = data.readableStream
+    ? [ports[0], data.readableStream]
+    : [ports[0]]
+
+  if (!(data.readableStream || data.transferringReadable)) {
+    keepAlive()
+  }
+
+  return sw.postMessage(data, transferable)
+}
+
+if (window.opener) {
+  // The opener cannot listen for the load event, so announce readiness.
+  window.opener.postMessage('StreamSaver::loadedPopup', '*')
+}
+
+if (navigator.serviceWorker) {
+  registerWorker().then(() => {
+    window.onmessage = onMessage
+    messages.forEach(window.onmessage)
+  })
+} else {
+  // Firefox can keep the worker alive with a fetch from a secure hidden iframe.
+  keepAlive()
+}
+</script>

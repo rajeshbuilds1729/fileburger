@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Toasted bun: the primary brand surface. */
+  --color-bun-50: #fdf7ec;
+  --color-bun-100: #f9ecd6;
+  --color-bun-200: #f2d7ae;
+  --color-bun-300: #e9bd7c;
+  --color-bun-400: #e2a24e;
+  --color-bun-500: #d98b2b;
+  --color-bun-600: #c06f1d;
+  --color-bun-700: #a0551a;
+  --color-bun-800: #82461c;
+  --color-bun-900: #6b3a1b;
+
+  /* Ketchup. */
+  --color-sauce-400: #e4573d;
+  --color-sauce-500: #d23f26;
+  --color-sauce-600: #b5311b;
+  --color-sauce-700: #932614;
+
+  /* Lettuce. */
+  --color-lettuce-400: #86bf4a;
+  --color-lettuce-500: #6aa63f;
+  --color-lettuce-600: #558734;
+
+  /* Sesame / crust: text accents and modal scrims. */
+  --color-crust-300: #b98458;
+  --color-crust-400: #a9713a;
+  --color-crust-500: #8a5528;
+  --color-crust-600: #6d3f1c;
+  --color-crust-700: #553018;
+  --color-crust-800: #3f2413;
+  --color-crust-900: #2b1810;
+
+  --animate-spin-slow: spin 16s linear infinite;
+}
+
+html {
+  height: 100dvh;
+}
+
+body {
+  min-height: 100dvh;
+  /* Cream paper, the way a wrapper is printed on a grease-proof bag. */
+  background-color: var(--color-bun-50);
+}
+
+.dark body {
+  background-color: #17120f;
+}
+
+#__next {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+/* The service worker's progress is meaningless once a transfer is done. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow {
+    animation: none;
+  }
+}
