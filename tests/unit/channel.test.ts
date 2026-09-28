@@ -44,19 +44,19 @@ describe('MemoryChannelRepo', () => {
   it('renews with the right secret and refuses the wrong one', async () => {
     const created = await repo.createChannel('peer-1')
 
-    expect(
-      await repo.renewChannel(created.shortSlug, 'not-the-secret'),
-    ).toBe(false)
-    expect(
-      await repo.renewChannel(created.shortSlug, created.secret!),
-    ).toBe(true)
+    expect(await repo.renewChannel(created.shortSlug, 'not-the-secret')).toBe(
+      false,
+    )
+    expect(await repo.renewChannel(created.shortSlug, created.secret!)).toBe(
+      true,
+    )
   })
 
   it('renews from the long slug too', async () => {
     const created = await repo.createChannel('peer-1')
-    expect(
-      await repo.renewChannel(created.longSlug, created.secret!),
-    ).toBe(true)
+    expect(await repo.renewChannel(created.longSlug, created.secret!)).toBe(
+      true,
+    )
   })
 
   it('destroys a channel from either slug, invalidating both', async () => {

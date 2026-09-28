@@ -116,9 +116,7 @@ describe('Downloader states', () => {
       totalSize: 2000,
     })
     render(<Downloader uploaderPeerID="peer-1" />)
-    expect(
-      screen.getByText('Enjoy! You received 2 files.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Enjoy! You received 2 files.')).toBeInTheDocument()
   })
 })
 
@@ -129,7 +127,9 @@ describe('ConnectingToUploader', () => {
       const { rerender } = render(
         <ConnectingToUploader showTroubleshootingAfter={1000} />,
       )
-      expect(screen.queryByText('Order taking a while?')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Order taking a while?'),
+      ).not.toBeInTheDocument()
 
       await vi.advanceTimersByTimeAsync(1000)
       rerender(<ConnectingToUploader showTroubleshootingAfter={1000} />)
@@ -153,9 +153,7 @@ describe('PasswordEntry', () => {
   })
 
   it('surfaces a rejected password', () => {
-    render(
-      <PasswordEntry onSubmit={vi.fn()} errorMessage="Invalid password" />,
-    )
+    render(<PasswordEntry onSubmit={vi.fn()} errorMessage="Invalid password" />)
     expect(screen.getByText('Invalid password')).toBeInTheDocument()
   })
 })
@@ -169,7 +167,14 @@ describe('subcomponent copy', () => {
       screen.getByText('You are about to receive 1 file.'),
     ).toBeInTheDocument()
 
-    rerender(<DownloadInProgress filesInfo={FILES} bytesDownloaded={0} totalSize={2000} onStop={vi.fn()} />)
+    rerender(
+      <DownloadInProgress
+        filesInfo={FILES}
+        bytesDownloaded={0}
+        totalSize={2000}
+        onStop={vi.fn()}
+      />,
+    )
     expect(screen.getByText('Digging into 2 files.')).toBeInTheDocument()
   })
 

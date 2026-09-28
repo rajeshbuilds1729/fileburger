@@ -30,9 +30,11 @@ const UTILITY = new RegExp(
 describe('theme colours', () => {
   it('defines every custom colour the components reach for', () => {
     const defined = new Set(
-      [...readFileSync(path.join(srcDir, 'styles.css'), 'utf8').matchAll(
-        /--color-([a-z]+-\d+):/g,
-      )].map((m) => m[1]),
+      [
+        ...readFileSync(path.join(srcDir, 'styles.css'), 'utf8').matchAll(
+          /--color-([a-z]+-\d+):/g,
+        ),
+      ].map((m) => m[1]),
     )
 
     const used = new Set<string>()

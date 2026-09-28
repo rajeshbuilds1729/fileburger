@@ -5,6 +5,42 @@ export type APIError = Error & { statusCode?: number }
 
 export type BodyKey = keyof typeof config.bodyKeys
 
+/**
+ * Reads a JSON object body without letting a malformed request surface as an
+ * unhandled 500 (which would return an HTML error page and log a stack trace).
+ * Returns null for anything that is not a JSON object.
+ */
+export async function readJSONBody(
+  request: Request,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await request.json()
+    if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+      return null
+    }
+    return body as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+/** Returns the trimmed value if it is a string within the configured bounds. */
+export function getBodyString(
+  body: Record<string, unknown>,
+  key: BodyKey,
+): string | null {
+  const { min, max } = config.bodyKeys[key]
+  const val = body[key]
+
+  if (typeof val !== 'string') {
+    return null
+  }
+  if (val.length < min || val.length > max) {
+    return null
+  }
+  return val
+}
+
 export function throwAPIError(message: string, statusCode = 500): void {
   const err = new Error(message) as APIError
   err.statusCode = statusCode

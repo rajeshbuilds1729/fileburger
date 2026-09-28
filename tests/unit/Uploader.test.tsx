@@ -48,7 +48,9 @@ import ReportTermsViolationButton from '../../src/components/ReportTermsViolatio
 
 const withQueryClient = (ui: React.ReactNode) => (
   <QueryClientProvider
-    client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}
+    client={
+      new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    }
   >
     {ui}
   </QueryClientProvider>
@@ -123,16 +125,11 @@ describe('ReportTermsViolationButton', () => {
 
     render(
       withQueryClient(
-        <ReportTermsViolationButton
-          uploaderPeerID="peer-1"
-          slug="abcd1234"
-        />,
+        <ReportTermsViolationButton uploaderPeerID="peer-1" slug="abcd1234" />,
       ),
     )
 
-    await user.click(
-      screen.getByRole('button', { name: /suspicious order/i }),
-    )
+    await user.click(screen.getByRole('button', { name: /suspicious order/i }))
     await user.click(screen.getByRole('button', { name: 'Report' }))
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -157,16 +154,11 @@ describe('ReportTermsViolationButton', () => {
     const user = userEvent.setup()
     render(
       withQueryClient(
-        <ReportTermsViolationButton
-          uploaderPeerID="peer-1"
-          slug="abcd1234"
-        />,
+        <ReportTermsViolationButton uploaderPeerID="peer-1" slug="abcd1234" />,
       ),
     )
 
-    await user.click(
-      screen.getByRole('button', { name: /suspicious order/i }),
-    )
+    await user.click(screen.getByRole('button', { name: /suspicious order/i }))
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()

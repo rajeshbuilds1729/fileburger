@@ -62,7 +62,9 @@ describe('InputLabel', () => {
 
   it('adds a tooltip trigger when given one', () => {
     render(<InputLabel tooltip="Extra info">Password</InputLabel>)
-    expect(screen.getByRole('button', { name: 'Show tooltip' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Show tooltip' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('Extra info')).toBeInTheDocument()
   })
 })
@@ -84,8 +86,9 @@ describe('TermsAcceptance', () => {
 describe('Footer', () => {
   it('credits the project it is based on', () => {
     render(<Footer />)
-    expect(
-      screen.getByRole('link', { name: 'FilePizza' }),
-    ).toHaveAttribute('href', 'https://github.com/kern/filepizza')
+    expect(screen.getByRole('link', { name: 'FilePizza' })).toHaveAttribute(
+      'href',
+      'https://github.com/kern/filepizza',
+    )
   })
 })

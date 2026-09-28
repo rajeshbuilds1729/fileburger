@@ -13,9 +13,7 @@ describe('CopyableInput', () => {
 
   it('derives a stable id from the label', () => {
     render(<CopyableInput label="Long URL" value="v" />)
-    expect(
-      document.getElementById('copyable-input-long-url'),
-    ).not.toBeNull()
+    expect(document.getElementById('copyable-input-long-url')).not.toBeNull()
   })
 
   it('copies to the clipboard and confirms', async () => {

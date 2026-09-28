@@ -28,9 +28,9 @@ describe('decodeMessage', () => {
   })
 
   it('allows an optional error message on PasswordRequired', () => {
-    expect(
-      decodeMessage({ type: MessageType.PasswordRequired }).type,
-    ).toBe(MessageType.PasswordRequired)
+    expect(decodeMessage({ type: MessageType.PasswordRequired }).type).toBe(
+      MessageType.PasswordRequired,
+    )
     expect(
       decodeMessage({
         type: MessageType.PasswordRequired,

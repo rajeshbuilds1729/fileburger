@@ -76,9 +76,7 @@ describe('AddFilesButton', () => {
     const onAdd = vi.fn()
     render(<AddFilesButton onAdd={onAdd} />)
 
-    const input = document.getElementById(
-      'add-files-input',
-    ) as HTMLInputElement
+    const input = document.getElementById('add-files-input') as HTMLInputElement
     const file = new File(['x'], 'extra.txt')
     Object.defineProperty(input, 'files', { value: [file], configurable: true })
 

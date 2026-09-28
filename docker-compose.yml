@@ -1,41 +1,56 @@
+name: fileburger
+
 services:
   redis:
     image: redis:latest
-    ports:
-      - 6379:6379
-    networks:
-      - fileburger
+    restart: unless-stopped
+    networks: [fileburger]
     volumes:
       - redis_data:/data
+    # Not published on purpose: only coturn and the app need to reach it.
 
   coturn:
     image: coturn/coturn
+    restart: unless-stopped
+    networks: [fileburger]
     ports:
-      - 3478:3478
-      - 3478:3478/udp
-      - 5349:5349
-      - 5349:5349/udp
-      # Relay ports
-      # - 49152-65535:49152-65535/udp
+      - '3478:3478/tcp'
+      - '3478:3478/udp'
+      - '5349:5349/tcp'
+      - '5349:5349/udp'
     environment:
       - DETECT_EXTERNAL_IP=yes
       - DETECT_RELAY_IP=yes
+    # coturn reads the same shared-secret scheme the app writes to Redis, so
+    # TURN credentials minted by /api/ice validate here without a static
+    # secret being shared with the app process.
     command: -n --log-file=stdout --redis-userdb="ip=redis connect_timeout=30"
-    networks:
-      - fileburger
+    # NOTE: coturn relays media on 49152-65535/udp. Those do NOT need to be
+    # published here (containers are NATed outbound), but the host firewall
+    # MUST allow them, and the cloud provider's security group too. Without
+    # them TURN silently fails to relay and transfers die behind symmetric NAT.
 
   fileburger:
     build: .
     image: fileburger:latest
+    restart: unless-stopped
+    networks: [fileburger]
     ports:
-      - 8080:8080
+      - '8080:8080'
     environment:
       - PORT=8080
       - REDIS_URL=redis://redis:6379
-    networks:
-      - fileburger
+      # TURN must be switched on explicitly, otherwise /api/ice hands out
+      # STUN only and transfers fail for anyone behind symmetric NAT.
+      - COTURN_ENABLED=true
+      - TURN_HOST=turn.example.com   # <- your coturn hostname
+      - TURN_REALM=file.burger
+      - PEERJS_HOST=signal.example.com # <- your signalling host
+      - PEERJS_PATH=/peerjs/fileburger
+      - NEXT_PUBLIC_SITE_URL=https://file.example.com
     depends_on:
       - redis
+      - coturn
 
 networks:
   fileburger:
