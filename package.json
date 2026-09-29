@@ -4,7 +4,7 @@
   "description": "Free peer-to-peer file transfers in your browser, with extra sauce.",
   "license": "BSD-3-Clause",
   "engines": {
-    "node": "22.x"
+    "node": ">=20"
   },
   "keywords": [
     "webrtc",
