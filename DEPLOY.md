@@ -120,18 +120,91 @@ lowest-effort option and removes the firewall configuration entirely.
 
 ## Option C — Vercel
 
-Works, with two caveats.
+Works. Two things are mandatory and one is impossible.
 
-1. **You must attach Redis** (Upstash, Neon, or any TCP endpoint). Without it
-   the in-memory store will not survive between invocations and every
-   `/download/<slug>` will 404.
-2. **You cannot run coturn on Vercel.** Use a hosted TURN provider, or accept
-   that transfers behind symmetric NAT will fail.
+**You must attach a Redis database.** This is not optional. Vercel's own
+documentation is blunt about it: *"no two instances share memory… module-level
+variables look correct in local development, where a single process serves
+every client, but break as soon as production traffic spans two instances."*
+Without Redis the app will create a channel in one function instance and look
+it up in another, and your share links will 404 intermittently — which is a
+ miserable thing to debug because it "works on my machine".
 
-`output: 'standalone'` is ignored on Vercel; it builds and runs the app itself.
+FileBurger detects this and shouts in the logs rather than failing quietly:
 
-Note that `NEXT_PUBLIC_*` values are inlined at **build** time, so changing
-`NEXT_PUBLIC_SITE_URL` needs a redeploy, not just a restart.
+```
+##############################################################
+# FileBurger: using IN-MEMORY channel storage on a serverless #
+# platform. Share links will 404 at random.                   #
+##############################################################
+```
+
+Set `CHANNEL_STORE=memory` if you genuinely want to silence that and accept
+the flakiness.
+
+**How to get `REDIS_URL`:** install **Redis Cloud** from the Vercel
+Marketplace. Vercel injects `REDIS_URL` automatically and nothing in the code
+changes — FileBurger already speaks the Redis wire protocol over TCP via
+`ioredis`.
+
+Two alternatives, both fine:
+
+- **Upstash**, also on the Marketplace. It exposes a standard TCP endpoint on
+  6379 as well as an HTTP API, so `rediss://…` works with `ioredis` unchanged.
+  Note the Upstash Marketplace integration primarily injects the *REST*
+  variables (`UPSTASH_REDIS_REST_URL` / `_TOKEN`), which are HTTP credentials
+  and will **not** work with `ioredis` — you need the TCP `rediss://` string
+  from the Upstash console.
+- **Self-host Redis** (or use a container) and set `REDIS_URL` yourself.
+
+**You cannot run coturn on Vercel.** Use a hosted TURN provider — Metered,
+Cloudflare Calls, or Twilio Network Traversal all work. Without TURN you are
+shipping STUN-only and transfers will fail for anyone behind symmetric NAT.
+
+```bash
+# Verify it is actually on:
+curl -sX POST https://your-app.vercel.app/api/ice
+# Good: iceServers contains a turn: entry with username/credential
+# Bad:  only a stun: entry
+```
+
+**Good news on timeouts.** The usual objection to serverless — "big file
+transfers will time out" — does not apply here. The transfer runs over a WebRTC
+data channel *between the two browsers*. Vercel only ever handles four tiny
+requests: create, renew (every 60s per active uploader), destroy, and the
+download page render. The longest one is a single Redis GET.
+
+Notes:
+
+- `output: 'standalone'` in `next.config.js` is ignored by Vercel; it builds
+  and runs the app itself. Harmless.
+- `NEXT_PUBLIC_SITE_URL` is inlined at **build** time, so changing it needs a
+  redeploy, not just a restart.
+- Pin your function region to match your Redis region (`regions` in
+  `vercel.json`) or you pay the cross-region latency on every channel lookup.
+- `vercel.json` is already set up with `framework: nextjs`, the build and
+  install commands, and a region.
+
+```bash
+# Deploy
+npx vercel            # preview
+npx vercel --prod     # production
+```
+
+## Option D — any Node host
+
+Anything that runs a long-lived Node process: a VPS, Fly.io, Railway, Render,
+Heroku, or your own box.
+
+```bash
+pnpm install
+pnpm build
+node .next/standalone/server.js
+```
+
+This is the only option where the in-memory channel store is genuinely safe,
+because one process serves every request. Redis is still worth adding if you
+ever run more than one instance, or you want channels to survive a restart.
 
 ## Post-deploy checklist
 

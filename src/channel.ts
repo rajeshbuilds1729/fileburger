@@ -289,19 +289,75 @@ export class RedisChannelRepo implements ChannelRepo {
  * Pinned to `globalThis` on purpose: the dev server can load this module more
  * than once (page render and route handlers get separate module graphs), and
  * two independent memory stores would mean "created but 404" channels.
+ *
+ * Note this only survives for the lifetime of one process. That is correct on
+ * a VM or in a container, but on a serverless platform consecutive requests
+ * can land in different processes and a memory-backed store will 404. See
+ * `assertStoreIsUsable`.
  */
 const globalScope = globalThis as typeof globalThis & {
   __fileBurgerChannelRepo?: ChannelRepo
 }
 
+/**
+ * Memory-backed storage only works if every request for a given slug reaches
+ * the same process. That holds on a long-running server and is exactly what
+ * breaks on Vercel/Netlify/Lambda, where the symptom is a `/download/<slug>`
+ * that 404s intermittently for no visible reason.
+ *
+ * `CHANNEL_STORE=memory` opts out of this loudly; `CHANNEL_STORE=redis` skips
+ * the check. Unset keeps the automatic behaviour.
+ */
+function assertStoreIsUsable(usingMemory: boolean): void {
+  if (!usingMemory) {
+    return
+  }
+
+  const isServerless =
+    Boolean(process.env.VERCEL) ||
+    Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME) ||
+    Boolean(process.env.NETLIFY)
+
+  if (!isServerless) {
+    return
+  }
+
+  // Plain ASCII on purpose: this lands in whatever log sink the platform
+  // provides, and box-drawing characters mangle in non-UTF8 terminals.
+  const message = [
+    '',
+    '  ##############################################################',
+    '  # FileBurger: using IN-MEMORY channel storage on a serverless #',
+    '  # platform. Share links will 404 at random.                   #',
+    '  ##############################################################',
+    '',
+    '  Set REDIS_URL to a Redis instance reachable over TCP, or set',
+    '  CHANNEL_STORE=memory to silence this and accept the flakiness.',
+    '',
+  ].join('\n')
+
+  console.warn(message)
+}
+
 export function getOrCreateChannelRepo(): ChannelRepo {
   if (!globalScope.__fileBurgerChannelRepo) {
+    const store = process.env.CHANNEL_STORE
+
+    if (store === 'redis' && !process.env.REDIS_URL) {
+      throw new Error(
+        'CHANNEL_STORE=redis but REDIS_URL is not set. Point it at a Redis ' +
+          'instance reachable over TCP, for example a rediss:// URL from the ' +
+          'Vercel Marketplace Redis integration.',
+      )
+    }
+
     if (process.env.REDIS_URL) {
       globalScope.__fileBurgerChannelRepo = new RedisChannelRepo()
       console.log('[ChannelRepo] Using Redis storage')
     } else {
       globalScope.__fileBurgerChannelRepo = new MemoryChannelRepo()
       console.log('[ChannelRepo] Using in-memory storage')
+      assertStoreIsUsable(store !== 'memory')
     }
   }
   return globalScope.__fileBurgerChannelRepo

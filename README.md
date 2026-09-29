@@ -73,7 +73,8 @@ All optional.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `REDIS_URL` | _(unset)_ | Channel storage. Unset ⇒ in-memory, single instance. |
+| `REDIS_URL` | _(unset)_ | Channel storage. Unset ⇒ in-memory, single process only. |
+| `CHANNEL_STORE` | _(unset)_ | `memory` silences the serverless warning; `redis` fails fast if `REDIS_URL` is unset. |
 | `COTURN_ENABLED` | _(unset)_ | Set to `true` to hand out ephemeral TURN credentials. |
 | `TURN_HOST` | `127.0.0.1` | Hostname/IP of the coturn server. |
 | `TURN_REALM` | `file.burger` | Realm used when deriving TURN credentials. |
@@ -81,7 +82,8 @@ All optional.
 | `PEERJS_HOST` | `0.peerjs.com` | Signalling host. Point at your own with `start:peerjs`. |
 | `PEERJS_PATH` | `/` | Signalling path. |
 | `PORT` | `3000` | HTTP port. |
-| `NEXT_PUBLIC_SITE_URL` | `https://file.burger` | Used for Open Graph URLs. |
+| `HOSTNAME` | `0.0.0.0` | Bind address. **Pin this in containers** — Docker sets it to the container ID and Next's standalone server will crash-loop. |
+| `NEXT_PUBLIC_SITE_URL` | `https://file.burger` | Used for Open Graph URLs. Inlined at build time. |
 
 If you change the slug alphabet or topping list, also update
 `tests/unit/channel.test.ts`, which asserts the generated shapes.
@@ -143,9 +145,23 @@ pnpm test
 ```
 
 95 unit tests covering the slug and channel repository, the wire-protocol
-schemas, chunk-boundary maths, and every component. `tests/stubs/` holds the
-two modules that cannot load outside their normal host: `server-only` (throws
-by design) and `next-view-transitions` (needs a mounted App Router).
+schemas, chunk-boundary maths, API input handling, and every component.
+`tests/stubs/` holds the two modules that cannot load outside their normal
+host: `server-only` (throws by design) and `next-view-transitions` (needs a
+mounted App Router).
+
+## Deploying
+
+See [DEPLOY.md](DEPLOY.md) for Docker Compose, PaaS, Vercel, and plain-Node
+options, the TURN and HTTPS requirements, and a troubleshooting table.
+
+Two things to know before you pick a target:
+
+- **HTTPS is mandatory.** Downloads are streamed to disk through a Service
+  Worker, which will not register outside a secure context.
+- **TURN is what makes it work for real users.** STUN alone fails for anyone
+  behind symmetric NAT. Check `/api/ice` returns a `turn:` entry, not just
+  `stun:`.
 
 End-to-end tests were left out on purpose — they need two real browsers
 negotiating a live WebRTC connection, which is a Playwright project to set up
